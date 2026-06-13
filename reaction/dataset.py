@@ -1,9 +1,14 @@
 from pathlib import Path
+import sys
 
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from rdkit import Chem
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from reaction.tokenizers import FingerprintTokenizer, SmilesTokenizer
 

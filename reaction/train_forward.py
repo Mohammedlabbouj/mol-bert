@@ -1,10 +1,15 @@
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader, random_split
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from models.bert_model import BertConfig
 from reaction.dataset import (
