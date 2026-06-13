@@ -44,3 +44,29 @@ python3 fine_tuning/prediction_Training_r0_r1_seq100.py --dataset_name bbbp --cu
 - SIDER
 - ClinTox
 - BBBP
+
+### Forward Reaction Prediction
+
+This repo now includes a fingerprint-to-SMILES encoder-decoder path for forward reaction prediction:
+
+- Encoder: pretrained Mol-BERT fingerprint encoder
+- Decoder: autoregressive Transformer decoder
+- Source tokens: Morgan fingerprint-derived tokens from reactants and reagents
+- Target tokens: tokenized product SMILES
+
+Train on a reaction table or USPTO-style file with:
+
+```bash
+python reaction/train_forward.py \
+  --data_dir data/uspto-480k \
+  --fingerprint_vocab_path croups/ident_merge.pickle \
+  --encoder_checkpoint path/to/molbert_checkpoint.pt \
+  --batch_size 32 \
+  --epochs 20 \
+  --lr_encoder 1e-5 \
+  --lr_decoder 1e-4
+```
+
+If you already have separate splits, use `--train_path`, `--valid_path`, `--test_path` and the matching `--train_target_path`, `--valid_target_path`, `--test_target_path` instead of `--data_dir`.
+
+The script logs `top-1`, `top-3`, `top-5`, and `top-10` product accuracy plus exact-match accuracy using canonicalized SMILES.
