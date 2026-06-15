@@ -2,7 +2,10 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from rdkit import Chem
-from rdkit.Chem import AllChem
+from rdkit import RDLogger
+from rdkit.Chem import rdFingerprintGenerator as FG
+
+RDLogger.DisableLog("rdApp.warning")
 
 
 def mol2alt_sentence(mol, radius):
@@ -26,17 +29,24 @@ def mol2alt_sentence(mol, radius):
     combined
     """
     radii = list(range(int(radius) + 1))
-    info = {}
-    _ = AllChem.GetMorganFingerprint(mol, radius, bitInfo=info)  # info: dictionary identifier, atom_idx, radius
+    if mol is None:
+        return []
+
+    generator = FG.GetMorganGenerator(radius=int(radius))
+    additional_output = FG.AdditionalOutput()
+    additional_output.CollectBitInfoMap()
+    _ = generator.GetSparseCountFingerprint(mol, additionalOutput=additional_output)
+    info = additional_output.GetBitInfoMap()
 
     mol_atoms = [a.GetIdx() for a in mol.GetAtoms()]
 
     #     print(mol_atoms)
     dict_atoms = {x: {r: None for r in radii} for x in mol_atoms}
 
-    for element in info:
-        for atom_idx, radius_at in info[element]:
-            dict_atoms[atom_idx][radius_at] = element  # {atom number: {fp radius: identifier}}
+    for element, occurrences in info.items():
+        for atom_idx, radius_at in occurrences:
+            if atom_idx in dict_atoms and radius_at in dict_atoms[atom_idx]:
+                dict_atoms[atom_idx][radius_at] = element  # {atom number: {fp radius: identifier}}
 
     # merge identifiers alternating radius to sentence: atom 0 radius0, atom 0 radius 1, etc.
     identifiers_alt = []

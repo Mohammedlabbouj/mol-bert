@@ -1,0 +1,20 @@
+name: mol-bert-rxn
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - pip
+  - numpy
+  - pandas
+  - scikit-learn
+  - tqdm
+  - rdkit
+  - pytorch=1.12.1
+  - torchvision=0.13.1
+  - pytorch-cuda=11.3
+  - pip:
+      - einops
+
