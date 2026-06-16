@@ -203,8 +203,23 @@ class Pretrainer:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         save_path = output_dir / f"bert.model.epoch.{epoch}"
-        torch.save({"model_state_dict": self.model.state_dict(), "config": self.config}, save_path)
+        torch.save(
+            {
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "config": self.config,
+                "epoch": epoch,
+            },
+            save_path,
+        )
         return save_path
+
+    def load_checkpoint(self, checkpoint_path):
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        self.model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+        if "optimizer_state_dict" in checkpoint:
+            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        return checkpoint
 
 
 def parse_args():
@@ -255,12 +270,26 @@ def main():
     train_dataset, valid_dataset = random_split(dataset, [train_len, valid_len], generator=generator)
 
     trainer = Pretrainer(config)
+    start_epoch = 0
+    best_valid_loss = float("inf")
+    stale_epochs = 0
+    last_checkpoint = output_dir / "last_checkpoint.pt"
+    best_checkpoint = output_dir / "best_checkpoint.pt"
+
     if args.resume_checkpoint:
-        checkpoint = torch.load(args.resume_checkpoint, map_location="cpu")
-        trainer.model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+        checkpoint = trainer.load_checkpoint(args.resume_checkpoint)
+        start_epoch = int(checkpoint.get("epoch", -1)) + 1
+        best_valid_loss = float(checkpoint.get("best_valid_loss", best_valid_loss))
+        stale_epochs = int(checkpoint.get("stale_epochs", 0))
+    elif config.get("auto_resume", True) and last_checkpoint.exists():
+        checkpoint = trainer.load_checkpoint(last_checkpoint)
+        start_epoch = int(checkpoint.get("epoch", -1)) + 1
+        best_valid_loss = float(checkpoint.get("best_valid_loss", best_valid_loss))
+        stale_epochs = int(checkpoint.get("stale_epochs", 0))
+        print(f"Resumed from {last_checkpoint} at epoch {start_epoch}")
 
     history = []
-    for epoch in range(config["epochs"]):
+    for epoch in range(start_epoch, config["epochs"]):
         train_loss, train_acc = trainer.run_epoch(trainer.make_loader(train_dataset, shuffle=True), train=True)
         valid_loss, valid_acc = trainer.run_epoch(trainer.make_loader(valid_dataset, shuffle=False), train=False)
         row = {
@@ -273,7 +302,31 @@ def main():
         history.append(row)
         pd.DataFrame(history).to_csv(output_dir / "history.csv", index=False)
         print(row)
+        checkpoint_state = {
+            "model_state_dict": trainer.model.state_dict(),
+            "optimizer_state_dict": trainer.optimizer.state_dict(),
+            "config": config,
+            "epoch": epoch,
+            "best_valid_loss": best_valid_loss,
+            "stale_epochs": stale_epochs,
+        }
+        torch.save(checkpoint_state, last_checkpoint)
         trainer.save_checkpoint(output_dir, epoch)
+
+        if valid_loss < (best_valid_loss - config["min_delta"]):
+            best_valid_loss = valid_loss
+            stale_epochs = 0
+            checkpoint_state["best_valid_loss"] = best_valid_loss
+            checkpoint_state["stale_epochs"] = stale_epochs
+            torch.save(checkpoint_state, best_checkpoint)
+        else:
+            stale_epochs += 1
+            if stale_epochs >= config["patience"]:
+                print(
+                    f"Early stopping triggered at epoch {epoch}. "
+                    f"Best valid_loss={best_valid_loss:.6f}"
+                )
+                break
 
 
 if __name__ == "__main__":
