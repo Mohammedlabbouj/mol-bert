@@ -1,7 +1,7 @@
 {
   "raw_data_path": "./data/ZINC-20/zinc_2m_subset.smi",
   "clean_data_path": "./data/ZINC-20/zinc20_cleaned.smi",
-  "vocab_path": "./data/ZINC-20/ident_merge.pickle",
+  "vocab_path": "croups/ident_merge.pickle",
   "output_dir": "./output/pretraining_zinc20",
   "batch_size": 32,
   "max_seq_len": 100,
