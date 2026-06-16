@@ -16,7 +16,7 @@
   "mask_prob": 0.15,
   "random_token_prob": 0.1,
   "keep_token_prob": 0.1,
-  "epochs": 20,
+  "epochs": 50,
   "patience": 5,
   "min_delta": 0.0001,
   "seed": 42,
