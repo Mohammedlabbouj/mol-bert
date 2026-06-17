@@ -1,0 +1,14 @@
+[
+  {
+    "line": 9937,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(NC(=O)CN2CCOCC2)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(NC(=O)CN2CCOCC2)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 17836,
+    "reason": "invalid_target_smiles",
+    "source": "Br.CC#N.CC(=O)O.CCOCC.COc1cc(C=O)c(C(=O)O)cc1OC.c1ccc(P(c2ccccc2)c2ccccc2)cc1",
+    "target": "COc1cc2c(cc1OC)C([PH2](c1ccccc1)(c1ccccc1)c1ccccc1)OC2=O"
+  }
+]

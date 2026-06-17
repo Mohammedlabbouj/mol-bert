@@ -78,3 +78,11 @@ It now also writes:
 - `best_checkpoint.pt` for the lowest validation loss
 
 Resume with `--resume_checkpoint path/to/last_checkpoint.pt` or use `--auto_resume` to pick up `last_checkpoint.pt` from the output directory automatically. Early stopping is controlled with `--patience` and `--min_delta`.
+
+If your USPTO files contain spaces between tokens, you can rewrite them with:
+
+```bash
+python reaction/clean_uspto480k.py --input_dir data/uspto-480k --output_dir data/uspto-480k-clean
+```
+
+This cleaner now also validates every source/target SMILES pair, removes invalid rows, and writes a JSON report of dropped line numbers.

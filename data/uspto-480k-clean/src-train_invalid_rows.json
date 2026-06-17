@@ -1,0 +1,176 @@
+[
+  {
+    "line": 8579,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccncc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccncc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 14988,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(NC(=O)COC)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(NC(=O)COC)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 21929,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(NC(=O)C(F)(F)F)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(NC(=O)C(F)(F)F)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 26963,
+    "reason": "invalid_target_smiles",
+    "source": "O=C(Cl)C(=O)Cl.O=C(O)C1CCN1Cc1ccccc1.[O-][Cl+3]([O-])([O-])O",
+    "target": "[O-][Cl+3]([O-])([O-])[O-].c1ccc(CN2CC[CH3+]2)cc1"
+  },
+  {
+    "line": 29568,
+    "reason": "invalid_source_smiles",
+    "source": "CCNC(=O)c1ccc([N+](=O)[O-])c(NCC)c1.CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNC(=O)c1ccc(N=C2SC(=C3Sc4ccccc4N3C)C(=O)N2Cc2ccccc2)c(NCC)c1"
+  },
+  {
+    "line": 39188,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(C(=O)OC)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(C(=O)OC)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 72518,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(NC(=O)COC)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccc(OCCCl)cc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(NC(=O)COC)cc1N=C1SC(=C2Sc3ccc(OCCCl)cc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 81481,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(NC(=O)CN2CCN(C)CC2)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(NC(=O)CN2CCN(C)CC2)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 100947,
+    "reason": "invalid_source_smiles",
+    "source": "C1CCOC1.CC12CCC(=O)C=C1CCC1C2C(O)CC2(C)C1CCC2(O)C(=O)CO.O.[Na+].[O-][IH2+3](O)(O)(O)(O)O.[OH-]",
+    "target": "CC12CCC(=O)C=C1CCC1C2C(O)CC2(C)C1CCC2(O)C(=O)O"
+  },
+  {
+    "line": 101032,
+    "reason": "invalid_source_smiles",
+    "source": "CCO.CN1[CH2+](c2c(Cl)cc(Cl)cc2-c2ccc(F)cc2)OCC1(C)C.O.[BH4-].[I-].[Na+]",
+    "target": "O=Cc1c(Cl)cc(Cl)cc1-c1ccc(F)cc1"
+  },
+  {
+    "line": 132015,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1cc(NC(C)=O)ccc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1cc(NC(C)=O)ccc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 136210,
+    "reason": "invalid_source_smiles",
+    "source": "CC1=Cc2cc3c(cc2[CH2+](C=Cc2ccc(O)cc2)O1)OCO3.CCO.NN.O.[O-][Cl+3]([O-])([O-])[O-]",
+    "target": "CC1=NN=C(C=Cc2ccc(O)cc2)c2cc3c(cc2C1)OCO3"
+  },
+  {
+    "line": 138910,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(NC(=O)CN(C)C)cc1[N+](=O)[O-].COCCOc1ccc2c(c1)N(C)C(=C1S[CH2+](SC)N(Cc3ccccc3)C1=O)S2.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(NC(=O)CN(C)C)cc1N=C1SC(=C2Sc3ccc(OCCOC)cc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 139700,
+    "reason": "invalid_source_smiles",
+    "source": "CC(=O)Nc1ccc([N+](=O)[O-])cn1.CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CC(=O)Nc1ccc(N=C2SC(=C3Sc4ccccc4N3C)C(=O)N2Cc2ccccc2)cn1"
+  },
+  {
+    "line": 147834,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(NC(=O)CN(C)C)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(NC(=O)CN(C)C)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 195364,
+    "reason": "invalid_source_smiles",
+    "source": "CC#N.CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1.Nc1ccccc1",
+    "target": "CN1C(=C2SC(=Nc3ccccc3)N(Cc3ccccc3)C2=O)Sc2ccccc21"
+  },
+  {
+    "line": 222741,
+    "reason": "invalid_source_smiles",
+    "source": "CCN(CC)CC.COc1cc2c(cc1OC)C([PH2](c1ccccc1)(c1ccccc1)c1ccccc1)OC2=O.ClCCl.O=Cc1ccncc1",
+    "target": "COc1cc2c(cc1OC)C(=Cc1ccncc1)OC2=O"
+  },
+  {
+    "line": 244342,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(C(C)=O)cc1N.COCCOc1ccc2c(c1)N(C)C(=C1S[CH2+](SC)N(Cc3ccccc3)C1=O)S2.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(C(C)=O)cc1N=C1SC(=C2Sc3ccc(OCCOC)cc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 261956,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(NC(=O)CN(C)C)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccc(OCCCl)cc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(NC(=O)CN(C)C)cc1N=C1SC(=C2Sc3ccc(OCCCl)cc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 301791,
+    "reason": "invalid_source_smiles",
+    "source": "CCO.CN1[CH2+](c2c(Cl)cc(Cl)cc2-c2ccc(F)cc2)OCC1(C)C.Cl.O.[BH4-].[I-].[Na+]",
+    "target": "O=Cc1c(Cl)cc(Cl)cc1-c1ccc(F)cc1"
+  },
+  {
+    "line": 307957,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(NC(=O)N2CCN(C)CC2)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(NC(=O)N2CCN(C)CC2)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 317456,
+    "reason": "invalid_source_smiles",
+    "source": "CN(C)C=O.COc1cc(C=C[CH2+]2OC(C)=Cc3cc4c(cc32)OCO4)ccc1O.NN.O.O.[O-][Cl+3]([O-])([O-])[O-]",
+    "target": "COc1cc(C=CC2=NN=C(C)Cc3cc4c(cc32)OCO4)ccc1O"
+  },
+  {
+    "line": 337253,
+    "reason": "invalid_source_smiles",
+    "source": "CC(=O)O[I+3]([O-])([O-])([O-])OC(C)=O.CC[N+](CC)(CC)CC.COc1ccc(O)c(C=O)c1.ClCCl",
+    "target": "COc1cc(I)c(O)c(C=O)c1"
+  },
+  {
+    "line": 369069,
+    "reason": "invalid_source_smiles",
+    "source": "CC12CCC(=O)C=C1CCC1C2C(O)CC2(C)C1CCC2(O)C(=O)CO.CO.O.[O-][IH2+3](O)(O)(O)(O)O",
+    "target": "CC12CCC(=O)C=C1CCC1C2C(O)CC2(C)C1CCC2(O)C(=O)O"
+  },
+  {
+    "line": 369091,
+    "reason": "invalid_source_smiles",
+    "source": "CC(=O)c1cccc(N)c1.COCCOc1ccc2c(c1)N(C)C(=C1S[CH2+](SC)N(Cc3ccccc3)C1=O)S2.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "COCCOc1ccc2c(c1)N(C)C(=C1SC(=Nc3cccc(C(C)=O)c3)N(Cc3ccccc3)C1=O)S2"
+  },
+  {
+    "line": 372583,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(NC(=O)COC(C)=O)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(NC(=O)COC(C)=O)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 375010,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(C(=O)NCCN(C)C)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(C(=O)NCCN(C)C)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 396038,
+    "reason": "invalid_source_smiles",
+    "source": "CCO.COc1cc2c(cc1OC)[CH2+](C=Cc1ccc(O)cc1)OC(C)=C2.NN.O.[O-][Cl+3]([O-])([O-])[O-]",
+    "target": "COc1cc2c(cc1OC)C(C=Cc1ccc(O)cc1)=NN=C(C)C2"
+  },
+  {
+    "line": 405935,
+    "reason": "invalid_target_smiles",
+    "source": "CC1(C)COC(c2c(Cl)cc(Cl)cc2-c2ccc(F)cc2)=N1.CI.C[N+](=O)[O-]",
+    "target": "CN1[CH2+](c2c(Cl)cc(Cl)cc2-c2ccc(F)cc2)OCC1(C)C.[I-]"
+  }
+]

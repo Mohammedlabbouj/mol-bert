@@ -48,7 +48,7 @@ def _infer_columns(frame):
 
 
 def _split_reaction_smiles(reaction):
-    reaction = str(reaction).strip()
+    reaction = compact_smiles(reaction)
     if ">>" in reaction:
         left, product = reaction.split(">>", 1)
         return left, "", product
@@ -92,12 +92,18 @@ def load_reaction_records(path, reaction_column=None, reactants_column=None, rea
     if reaction_column is not None:
         for value in frame[reaction_column].astype(str).tolist():
             reactants, reagents, product = _split_reaction_smiles(value)
+            reactants = compact_smiles(reactants)
+            reagents = compact_smiles(reagents)
+            product = compact_smiles(product)
             records.append({"reactants": reactants, "reagents": reagents, "product": product})
     else:
         reactants_values = frame[reactants_column].astype(str).tolist() if reactants_column is not None else [""] * len(frame)
         reagents_values = frame[reagents_column].astype(str).tolist() if reagents_column is not None else [""] * len(frame)
         products_values = frame[product_column].astype(str).tolist() if product_column is not None else [""] * len(frame)
         for reactants, reagents, product in zip(reactants_values, reagents_values, products_values):
+            reactants = compact_smiles(reactants)
+            reagents = compact_smiles(reagents)
+            product = compact_smiles(product)
             records.append({"reactants": reactants, "reagents": reagents, "product": product})
     return records
 

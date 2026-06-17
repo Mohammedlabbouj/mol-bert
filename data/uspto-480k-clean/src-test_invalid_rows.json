@@ -1,0 +1,38 @@
+[
+  {
+    "line": 689,
+    "reason": "invalid_source_smiles",
+    "source": "CCNC(=O)c1ccc(NCC)c([N+](=O)[O-])c1.CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNC(=O)c1ccc(NCC)c(N=C2SC(=C3Sc4ccccc4N3C)C(=O)N2Cc2ccccc2)c1"
+  },
+  {
+    "line": 1552,
+    "reason": "invalid_source_smiles",
+    "source": "CCOc1ccc(C(C)=O)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCOc1ccc(C(C)=O)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 2273,
+    "reason": "invalid_source_smiles",
+    "source": "COc1ccc(-c2nc([CH2+](CBr)C(F)(F)CF)[nH]c2-c2ccc(OC)cc2)cc1.FC(Br)C(F)(F)Sc1nc(-c2ccccc2)c(-c2ccccc2)[nH]1",
+    "target": "FCC(F)(F)Sc1nc(-c2ccccc2)c(-c2ccccc2)[nH]1"
+  },
+  {
+    "line": 17526,
+    "reason": "invalid_source_smiles",
+    "source": "CCNc1ccc(C(=O)OC(C)(C)C)cc1[N+](=O)[O-].CS[CH2+]1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1.Cc1ccc(S(=O)(=O)[O-])cc1",
+    "target": "CCNc1ccc(C(=O)OC(C)(C)C)cc1N=C1SC(=C2Sc3ccccc3N2C)C(=O)N1Cc1ccccc1"
+  },
+  {
+    "line": 24647,
+    "reason": "invalid_source_smiles",
+    "source": "CCN1C(=O)C(=C2Sc3ccccc3N2C)S[CH2+]1SC.Cc1ccc(S(=O)(=O)[O-])cc1.Nc1ccc2ncccc2c1",
+    "target": "CCN1C(=O)C(=C2Sc3ccccc3N2C)SC1=Nc1ccc2ncccc2c1"
+  },
+  {
+    "line": 25945,
+    "reason": "invalid_source_smiles",
+    "source": "CC(=O)OCC(=O)C1(O)CCC2C3CCC4=CC(=O)CCC4(C)C3(F)C(O)CC21C.CO.Cl.O.[Na+].[O-][IH2+3](O)(O)(O)(O)O.[OH-]",
+    "target": "CC12CCC(=O)C=C1CCC1C3CCC(O)(C(=O)O)C3(C)CC(O)C12F"
+  }
+]
