@@ -70,3 +70,11 @@ python reaction/train_forward.py \
 If you already have separate splits, use `--train_path`, `--valid_path`, `--test_path` and the matching `--train_target_path`, `--valid_target_path`, `--test_target_path` instead of `--data_dir`.
 
 The script logs `top-1`, `top-3`, `top-5`, and `top-10` product accuracy plus exact-match accuracy using canonicalized SMILES.
+
+It now also writes:
+
+- `training_log.csv` for epoch-by-epoch tracking
+- `last_checkpoint.pt` for resume-after-interruption
+- `best_checkpoint.pt` for the lowest validation loss
+
+Resume with `--resume_checkpoint path/to/last_checkpoint.pt` or use `--auto_resume` to pick up `last_checkpoint.pt` from the output directory automatically. Early stopping is controlled with `--patience` and `--min_delta`.

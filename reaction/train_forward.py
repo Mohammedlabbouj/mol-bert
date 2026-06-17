@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -222,27 +223,82 @@ def make_loader(dataset, batch_size, shuffle, pad_source_id, pad_target_id, num_
     )
 
 
+def unwrap_dataset(dataset):
+    return dataset.dataset if hasattr(dataset, "dataset") else dataset
+
+
+def get_source_tokenizer(dataset):
+    return unwrap_dataset(dataset).source_tokenizer
+
+
+def get_target_tokenizer(dataset):
+    return unwrap_dataset(dataset).target_tokenizer
+
+
+def save_checkpoint(path, state):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(state, path)
+
+
+def load_checkpoint(path, model, optimizer=None, map_location="cpu"):
+    checkpoint = torch.load(path, map_location=map_location)
+    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+    if optimizer is not None and "optimizer_state_dict" in checkpoint:
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    return checkpoint
+
+
 @torch.no_grad()
 def evaluate(model, loader, device, max_top_k=10):
     model.eval()
     top_hits = {1: 0, 3: 0, 5: 0, 10: 0}
     total = 0
     exact_matches = 0
+    total_loss = 0.0
+    total_tokens = 0
     oov_stats = None
+    dataset = unwrap_dataset(loader.dataset)
     for batch in loader:
         source_ids = batch["source_ids"].to(device)
         source_mask = batch["source_mask"].to(device)
+        target_input_ids = batch["target_input_ids"].to(device)
+        target_output_ids = batch["target_output_ids"].to(device)
         batch_size = source_ids.size(0)
         total += batch_size
+        pos = build_source_positional_encoding(batch_size, source_ids.size(1), model.hidden_size, device)
+        outputs = model(
+            source_ids=source_ids,
+            source_positional_enc=pos,
+            target_input_ids=target_input_ids,
+            source_mask=source_mask,
+            target_output_ids=target_output_ids,
+        )
+        logits = outputs["logits"]
+        loss_sum = F.cross_entropy(
+            logits.reshape(-1, logits.size(-1)),
+            target_output_ids.reshape(-1),
+            ignore_index=model.target_pad_id,
+            reduction="sum",
+        )
+        non_pad_tokens = target_output_ids.ne(model.target_pad_id).sum().item()
+        total_loss += float(loss_sum.item())
+        total_tokens += int(non_pad_tokens)
         for index in range(batch_size):
             src = source_ids[index : index + 1]
             src_mask = source_mask[index : index + 1]
-            pos = build_source_positional_encoding(1, src.size(1), model.hidden_size, device)
-            beams = model.beam_search(src, pos, source_mask=src_mask, beam_size=max_top_k, max_length=loader.dataset.dataset.max_target_len if hasattr(loader.dataset, "dataset") else loader.dataset.max_target_len)
+            src_pos = build_source_positional_encoding(1, src.size(1), model.hidden_size, device)
+            beams = model.beam_search(
+                src,
+                src_pos,
+                source_mask=src_mask,
+                beam_size=max_top_k,
+                max_length=dataset.max_target_len,
+            )
             target = batch["target_smiles"][index]
             candidates = []
             for tokens, _score in beams:
-                decoded = loader.dataset.dataset.target_tokenizer.decode(tokens) if hasattr(loader.dataset, "dataset") else loader.dataset.target_tokenizer.decode(tokens)
+                decoded = dataset.target_tokenizer.decode(tokens)
                 canonical = canonicalize_smiles(decoded) or decoded
                 candidates.append(canonical)
             canonical_target = canonicalize_smiles(target) or target
@@ -251,11 +307,10 @@ def evaluate(model, loader, device, max_top_k=10):
             for k in top_hits:
                 if canonical_target in candidates[:k]:
                     top_hits[k] += 1
-        if oov_stats is None and hasattr(loader.dataset, "dataset"):
-            oov_stats = loader.dataset.dataset.source_tokenizer.coverage_report()
-        elif oov_stats is None:
-            oov_stats = loader.dataset.source_tokenizer.coverage_report()
+        if oov_stats is None:
+            oov_stats = dataset.source_tokenizer.coverage_report()
     metrics = {
+        "valid_loss": total_loss / max(total_tokens, 1),
         "exact_match": exact_matches / max(total, 1),
         "top1": top_hits[1] / max(total, 1),
         "top3": top_hits[3] / max(total, 1),
@@ -333,6 +388,10 @@ def parse_args():
     parser.add_argument("--disable_target_canonicalization", action="store_true")
     parser.add_argument("--tie_decoder_weights", action="store_true")
     parser.add_argument("--save_every", type=int, default=1)
+    parser.add_argument("--patience", type=int, default=5)
+    parser.add_argument("--min_delta", type=float, default=1e-4)
+    parser.add_argument("--resume_checkpoint", type=str, default=None)
+    parser.add_argument("--auto_resume", action="store_true")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     return parser.parse_args()
 
@@ -347,20 +406,15 @@ def main():
     train_dataset, valid_dataset, test_dataset, target_tokenizer = prepare_datasets(args)
     encoder_config = infer_encoder_config(
         args.encoder_checkpoint,
-        vocab_size=train_dataset.dataset.source_tokenizer.vocab_size if hasattr(train_dataset, "dataset") else train_dataset.source_tokenizer.vocab_size,
+        vocab_size=get_source_tokenizer(train_dataset).vocab_size,
         default_hidden_size=args.hidden_size,
         default_layers=args.num_hidden_layers,
         default_heads=args.num_attention_heads,
         default_ff=args.intermediate_size,
     )
-    if hasattr(train_dataset, "dataset"):
-        target_pad_id = train_dataset.dataset.target_tokenizer.pad_id
-        target_bos_id = train_dataset.dataset.target_tokenizer.bos_id
-        target_eos_id = train_dataset.dataset.target_tokenizer.eos_id
-    else:
-        target_pad_id = train_dataset.target_tokenizer.pad_id
-        target_bos_id = train_dataset.target_tokenizer.bos_id
-        target_eos_id = train_dataset.target_tokenizer.eos_id
+    target_pad_id = get_target_tokenizer(train_dataset).pad_id
+    target_bos_id = get_target_tokenizer(train_dataset).bos_id
+    target_eos_id = get_target_tokenizer(train_dataset).eos_id
 
     model = FingerprintReactionModel(
         encoder_config=encoder_config,
@@ -390,7 +444,7 @@ def main():
         train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
-        pad_source_id=train_dataset.dataset.source_tokenizer.pad_token_id if hasattr(train_dataset, "dataset") else train_dataset.source_tokenizer.pad_token_id,
+        pad_source_id=get_source_tokenizer(train_dataset).pad_token_id,
         pad_target_id=target_pad_id,
         num_workers=args.num_workers,
     )
@@ -398,7 +452,7 @@ def main():
         valid_dataset,
         batch_size=args.batch_size,
         shuffle=False,
-        pad_source_id=valid_dataset.dataset.source_tokenizer.pad_token_id if hasattr(valid_dataset, "dataset") else valid_dataset.source_tokenizer.pad_token_id,
+        pad_source_id=get_source_tokenizer(valid_dataset).pad_token_id,
         pad_target_id=target_pad_id,
         num_workers=args.num_workers,
     )
@@ -406,56 +460,91 @@ def main():
         test_dataset,
         batch_size=args.batch_size,
         shuffle=False,
-        pad_source_id=test_dataset.dataset.source_tokenizer.pad_token_id if hasattr(test_dataset, "dataset") else test_dataset.source_tokenizer.pad_token_id,
+        pad_source_id=get_source_tokenizer(test_dataset).pad_token_id,
         pad_target_id=target_pad_id,
         num_workers=args.num_workers,
     )
 
-    log_path = args.output_dir / "metrics.csv"
+    log_path = args.output_dir / "training_log.csv"
+    last_checkpoint_path = args.output_dir / "last_checkpoint.pt"
+    best_checkpoint_path = args.output_dir / "best_checkpoint.pt"
     rows = []
-    best_valid = -1.0
-    for epoch in range(1, args.epochs + 1):
+    best_valid_loss = float("inf")
+    stale_epochs = 0
+    start_epoch = 1
+
+    if args.resume_checkpoint:
+        checkpoint = load_checkpoint(args.resume_checkpoint, model, optimizer, map_location=args.device)
+        start_epoch = int(checkpoint.get("epoch", 0)) + 1
+        best_valid_loss = float(checkpoint.get("best_valid_loss", best_valid_loss))
+        stale_epochs = int(checkpoint.get("stale_epochs", stale_epochs))
+        print(f"Resumed from {args.resume_checkpoint} at epoch {start_epoch}")
+    elif args.auto_resume and last_checkpoint_path.exists():
+        checkpoint = load_checkpoint(last_checkpoint_path, model, optimizer, map_location=args.device)
+        start_epoch = int(checkpoint.get("epoch", 0)) + 1
+        best_valid_loss = float(checkpoint.get("best_valid_loss", best_valid_loss))
+        stale_epochs = int(checkpoint.get("stale_epochs", stale_epochs))
+        print(f"Auto-resumed from {last_checkpoint_path} at epoch {start_epoch}")
+    if (args.resume_checkpoint or (args.auto_resume and last_checkpoint_path.exists())) and log_path.exists():
+        rows = pd.read_csv(log_path).to_dict(orient="records")
+
+    target_tokenizer_obj = get_target_tokenizer(train_dataset)
+
+    for epoch in range(start_epoch, args.epochs + 1):
         train_loss = train_epoch(model, train_loader, optimizer, args.device, gradient_clip=args.gradient_clip)
         valid_metrics = evaluate(model, valid_loader, args.device)
         test_metrics = evaluate(model, test_loader, args.device)
         row = {
             "epoch": epoch,
             "train_loss": train_loss,
+            "valid_loss": valid_metrics["valid_loss"],
             "valid_top1": valid_metrics["top1"],
             "valid_top3": valid_metrics["top3"],
             "valid_top5": valid_metrics["top5"],
             "valid_top10": valid_metrics["top10"],
             "valid_exact_match": valid_metrics["exact_match"],
+            "test_loss": test_metrics["valid_loss"],
             "test_top1": test_metrics["top1"],
             "test_top3": test_metrics["top3"],
             "test_top5": test_metrics["top5"],
             "test_top10": test_metrics["top10"],
             "test_exact_match": test_metrics["exact_match"],
-            "source_coverage": train_dataset.dataset.source_tokenizer.coverage() if hasattr(train_dataset, "dataset") else train_dataset.source_tokenizer.coverage(),
+            "source_coverage": get_source_tokenizer(train_dataset).coverage(),
         }
         rows.append(row)
         pd.DataFrame(rows).to_csv(log_path, index=False)
         print(json.dumps(row, indent=2))
-        if valid_metrics["top1"] > best_valid:
-            best_valid = valid_metrics["top1"]
-            torch.save(
-                {
-                    "model_state_dict": model.state_dict(),
-                    "encoder_config": encoder_config.__dict__,
-                    "target_tokenizer": target_tokenizer.token_to_id,
-                    "source_vocab_coverage": train_dataset.dataset.source_tokenizer.coverage_report() if hasattr(train_dataset, "dataset") else train_dataset.source_tokenizer.coverage_report(),
-                },
-                args.output_dir / "best_model.pt",
-            )
+        improved = valid_metrics["valid_loss"] < (best_valid_loss - args.min_delta)
+        if improved:
+            best_valid_loss = valid_metrics["valid_loss"]
+            stale_epochs = 0
+        else:
+            stale_epochs += 1
+
+        checkpoint_state = {
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "encoder_config": encoder_config.__dict__,
+            "target_tokenizer": target_tokenizer_obj.token_to_id,
+            "source_vocab_coverage": get_source_tokenizer(train_dataset).coverage_report(),
+            "epoch": epoch,
+            "best_valid_loss": best_valid_loss,
+            "stale_epochs": stale_epochs,
+            "train_row": row,
+            "args": vars(args),
+        }
+        save_checkpoint(last_checkpoint_path, checkpoint_state)
         if epoch % args.save_every == 0:
-            torch.save(
-                {
-                    "model_state_dict": model.state_dict(),
-                    "encoder_config": encoder_config.__dict__,
-                    "target_tokenizer": target_tokenizer.token_to_id,
-                },
-                args.output_dir / f"checkpoint_epoch_{epoch}.pt",
+            save_checkpoint(args.output_dir / f"checkpoint_epoch_{epoch}.pt", checkpoint_state)
+        if improved:
+            save_checkpoint(best_checkpoint_path, checkpoint_state)
+
+        if stale_epochs >= args.patience:
+            print(
+                f"Early stopping triggered at epoch {epoch}. "
+                f"Best valid_loss={best_valid_loss:.6f}"
             )
+            break
 
 
 if __name__ == "__main__":
