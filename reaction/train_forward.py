@@ -261,16 +261,17 @@ def load_checkpoint(path, model, optimizer=None, map_location="cpu"):
 
 
 @torch.no_grad()
-def evaluate(model, loader, device, max_top_k=10):
+def evaluate(model, loader, device, beam_size=5):
     model.eval()
-    top_hits = {1: 0, 3: 0, 5: 0, 10: 0}
+    metric_ks = [k for k in (1, 3, 5, 10) if k <= beam_size]
+    top_hits = {k: 0 for k in metric_ks}
     total = 0
     exact_matches = 0
     total_loss = 0.0
     total_tokens = 0
     oov_stats = None
     dataset = unwrap_dataset(loader.dataset)
-    iterator = progress(loader, total=len(loader), desc="valid" if max_top_k == 10 else "eval")
+    iterator = progress(loader, total=len(loader), desc="valid")
     for batch in iterator:
         source_ids = batch["source_ids"].to(device)
         source_mask = batch["source_mask"].to(device)
@@ -304,7 +305,7 @@ def evaluate(model, loader, device, max_top_k=10):
                 src,
                 src_pos,
                 source_mask=src_mask,
-                beam_size=max_top_k,
+                beam_size=beam_size,
                 max_length=dataset.max_target_len,
             )
             target = batch["target_smiles"][index]
@@ -326,10 +327,10 @@ def evaluate(model, loader, device, max_top_k=10):
     metrics = {
         "valid_loss": total_loss / max(total_tokens, 1),
         "exact_match": exact_matches / max(total, 1),
-        "top1": top_hits[1] / max(total, 1),
-        "top3": top_hits[3] / max(total, 1),
-        "top5": top_hits[5] / max(total, 1),
-        "top10": top_hits[10] / max(total, 1),
+        "top1": top_hits.get(1, 0) / max(total, 1),
+        "top3": top_hits.get(3, 0) / max(total, 1),
+        "top5": top_hits.get(5, 0) / max(total, 1),
+        "top10": top_hits.get(10, 0) / max(total, 1),
         "oov_total_tokens": oov_stats["total_tokens"] if oov_stats else 0,
         "oov_tokens": oov_stats["oov_tokens"] if oov_stats else 0,
         "source_coverage": oov_stats["coverage"] if oov_stats else 1.0,
@@ -399,6 +400,7 @@ def parse_args():
     parser.add_argument("--decoder_dropout", type=float, default=0.1)
     parser.add_argument("--max_source_len", type=int, default=256)
     parser.add_argument("--max_target_len", type=int, default=256)
+    parser.add_argument("--beam_size", type=int, default=5)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--gradient_clip", type=float, default=1.0)
@@ -511,9 +513,9 @@ def main():
         print(f"Epoch {epoch}/{args.epochs}", flush=True)
         train_loss = train_epoch(model, train_loader, optimizer, args.device, gradient_clip=args.gradient_clip)
         print("Running validation...", flush=True)
-        valid_metrics = evaluate(model, valid_loader, args.device)
+        valid_metrics = evaluate(model, valid_loader, args.device, beam_size=args.beam_size)
         print("Running test evaluation...", flush=True)
-        test_metrics = evaluate(model, test_loader, args.device)
+        test_metrics = evaluate(model, test_loader, args.device, beam_size=args.beam_size)
         row = {
             "epoch": epoch,
             "train_loss": train_loss,
