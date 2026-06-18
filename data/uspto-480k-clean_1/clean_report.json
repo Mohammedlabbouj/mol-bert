@@ -1,0 +1,29 @@
+[
+  {
+    "source_file": "src-train.txt",
+    "target_file": "tgt-train.txt",
+    "input_rows": 409035,
+    "kept_rows": 71280,
+    "dropped_rows": 337755,
+    "source_unk_rows": 337726,
+    "invalid_rows_file": "src-train_invalid_rows.json"
+  },
+  {
+    "source_file": "src-val.txt",
+    "target_file": "tgt-val.txt",
+    "input_rows": 30000,
+    "kept_rows": 5123,
+    "dropped_rows": 24877,
+    "source_unk_rows": 24875,
+    "invalid_rows_file": "src-val_invalid_rows.json"
+  },
+  {
+    "source_file": "src-test.txt",
+    "target_file": "tgt-test.txt",
+    "input_rows": 40000,
+    "kept_rows": 6825,
+    "dropped_rows": 33175,
+    "source_unk_rows": 33169,
+    "invalid_rows_file": "src-test_invalid_rows.json"
+  }
+]

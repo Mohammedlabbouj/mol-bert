@@ -13,6 +13,12 @@ except Exception:
 
 RDLogger.DisableLog("rdApp.*")
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in __import__("sys").path:
+    __import__("sys").path.insert(0, str(REPO_ROOT))
+
+from reaction.tokenizers import FingerprintTokenizer
+
 
 def compact_line(line):
     return "".join(str(line).split())
@@ -45,7 +51,22 @@ def validate_reaction_side(side):
     return True
 
 
-def clean_pair_file(src_path, tgt_path, output_dir, canonicalize_targets=False):
+def source_has_unk(source_tokenizer, source_smiles):
+    encoded = source_tokenizer.encode_reaction_context(source_smiles, "")
+    unk_count = sum(1 for token_id in encoded if token_id == source_tokenizer.unk_token_id)
+    return unk_count, len(encoded)
+
+
+def clean_pair_file(
+    src_path,
+    tgt_path,
+    output_dir,
+    canonicalize_targets=False,
+    filter_source_unk=False,
+    max_source_unk_ratio=1.0,
+    min_source_tokens=1,
+    source_tokenizer=None,
+):
     src_path = Path(src_path)
     tgt_path = Path(tgt_path)
     output_dir = Path(output_dir)
@@ -65,6 +86,7 @@ def clean_pair_file(src_path, tgt_path, output_dir, canonicalize_targets=False):
     kept = 0
     dropped = 0
     invalid_rows = []
+    source_unk_rows = 0
 
     iterator = zip(src_lines, tgt_lines)
     if tqdm is not None:
@@ -94,6 +116,25 @@ def clean_pair_file(src_path, tgt_path, output_dir, canonicalize_targets=False):
                 mol = Chem.MolFromSmiles(tgt_clean)
                 tgt_clean = Chem.MolToSmiles(mol, canonical=True) if mol is not None else tgt_clean
 
+            if filter_source_unk and source_tokenizer is not None:
+                source_unk_count, source_token_count = source_has_unk(source_tokenizer, src_clean)
+                source_unk_ratio = source_unk_count / max(source_token_count, 1)
+                if source_token_count >= min_source_tokens and source_unk_ratio > max_source_unk_ratio:
+                    dropped += 1
+                    source_unk_rows += 1
+                    invalid_rows.append(
+                        {
+                            "line": line_no,
+                            "reason": "source_vocab_unk",
+                            "source": src_clean,
+                            "target": tgt_clean,
+                            "source_unk_count": source_unk_count,
+                            "source_token_count": source_token_count,
+                            "source_unk_ratio": source_unk_ratio,
+                        }
+                    )
+                    continue
+
             src_out.write(src_clean + "\n")
             tgt_out.write(tgt_clean + "\n")
             kept += 1
@@ -109,6 +150,7 @@ def clean_pair_file(src_path, tgt_path, output_dir, canonicalize_targets=False):
         "input_rows": len(src_lines),
         "kept_rows": kept,
         "dropped_rows": dropped,
+        "source_unk_rows": source_unk_rows,
         "invalid_rows_file": bad_path.name,
     }
     return report
@@ -119,6 +161,29 @@ def parse_args():
     parser.add_argument("--input_dir", type=Path, required=True, help="Folder containing src-*.txt and tgt-*.txt")
     parser.add_argument("--output_dir", type=Path, required=True, help="Destination folder for cleaned files")
     parser.add_argument(
+        "--fingerprint_vocab_path",
+        type=Path,
+        default=Path("croups/ident_merge.pickle"),
+        help="Fingerprint vocabulary used to detect source-side UNK substructures.",
+    )
+    parser.add_argument(
+        "--filter_source_unk",
+        action="store_true",
+        help="Drop rows whose source fingerprint tokens contain too many UNK tokens.",
+    )
+    parser.add_argument(
+        "--max_source_unk_ratio",
+        type=float,
+        default=1.0,
+        help="Maximum allowed fraction of UNK source tokens before a row is dropped.",
+    )
+    parser.add_argument(
+        "--min_source_tokens",
+        type=int,
+        default=1,
+        help="Only apply the UNK ratio filter when the source has at least this many tokens.",
+    )
+    parser.add_argument(
         "--canonicalize_targets",
         action="store_true",
         help="Canonicalize product SMILES in the target files after validation.",
@@ -128,6 +193,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    source_tokenizer = FingerprintTokenizer(args.fingerprint_vocab_path) if args.filter_source_unk else None
     pairs = [
         ("src-train.txt", "tgt-train.txt"),
         ("src-val.txt", "tgt-val.txt"),
@@ -140,9 +206,14 @@ def main():
             args.input_dir / tgt_name,
             args.output_dir,
             canonicalize_targets=args.canonicalize_targets,
+            filter_source_unk=args.filter_source_unk,
+            max_source_unk_ratio=args.max_source_unk_ratio,
+            min_source_tokens=args.min_source_tokens,
+            source_tokenizer=source_tokenizer,
         )
         reports.append(report)
-        print(f"cleaned {src_name} / {tgt_name}: kept {report['kept_rows']} of {report['input_rows']}")
+        extra = f", source_unk={report['source_unk_rows']}" if args.filter_source_unk else ""
+        print(f"cleaned {src_name} / {tgt_name}: kept {report['kept_rows']} of {report['input_rows']}{extra}")
 
     summary_path = Path(args.output_dir) / "clean_report.json"
     with summary_path.open("w", encoding="utf-8") as handle:
