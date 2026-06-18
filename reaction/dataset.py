@@ -5,6 +5,9 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from rdkit import Chem
+from rdkit import RDLogger
+
+RDLogger.DisableLog("rdApp.*")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:

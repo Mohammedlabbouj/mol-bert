@@ -8,6 +8,11 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 
+try:
+    from tqdm.auto import tqdm
+except Exception:
+    tqdm = None
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -223,6 +228,12 @@ def make_loader(dataset, batch_size, shuffle, pad_source_id, pad_target_id, num_
     )
 
 
+def progress(iterable, total=None, desc=None):
+    if tqdm is None:
+        return iterable
+    return tqdm(iterable, total=total, desc=desc, leave=True)
+
+
 def unwrap_dataset(dataset):
     return dataset.dataset if hasattr(dataset, "dataset") else dataset
 
@@ -259,7 +270,8 @@ def evaluate(model, loader, device, max_top_k=10):
     total_tokens = 0
     oov_stats = None
     dataset = unwrap_dataset(loader.dataset)
-    for batch in loader:
+    iterator = progress(loader, total=len(loader), desc="valid" if max_top_k == 10 else "eval")
+    for batch in iterator:
         source_ids = batch["source_ids"].to(device)
         source_mask = batch["source_mask"].to(device)
         target_input_ids = batch["target_input_ids"].to(device)
@@ -309,6 +321,8 @@ def evaluate(model, loader, device, max_top_k=10):
                     top_hits[k] += 1
         if oov_stats is None:
             oov_stats = dataset.source_tokenizer.coverage_report()
+        if tqdm is not None and iterator is not loader:
+            iterator.set_postfix(loss=total_loss / max(total_tokens, 1))
     metrics = {
         "valid_loss": total_loss / max(total_tokens, 1),
         "exact_match": exact_matches / max(total, 1),
@@ -326,7 +340,8 @@ def evaluate(model, loader, device, max_top_k=10):
 def train_epoch(model, loader, optimizer, device, gradient_clip=1.0):
     model.train()
     running_loss = 0.0
-    for batch in loader:
+    iterator = progress(enumerate(loader, start=1), total=len(loader), desc="train")
+    for step, batch in iterator:
         source_ids = batch["source_ids"].to(device)
         source_mask = batch["source_mask"].to(device)
         target_input_ids = batch["target_input_ids"].to(device)
@@ -345,6 +360,8 @@ def train_epoch(model, loader, optimizer, device, gradient_clip=1.0):
         torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
         optimizer.step()
         running_loss += loss.item()
+        if tqdm is not None:
+            iterator.set_postfix(loss=running_loss / max(step, 1))
     return running_loss / max(len(loader), 1)
 
 
@@ -491,8 +508,11 @@ def main():
     target_tokenizer_obj = get_target_tokenizer(train_dataset)
 
     for epoch in range(start_epoch, args.epochs + 1):
+        print(f"Epoch {epoch}/{args.epochs}", flush=True)
         train_loss = train_epoch(model, train_loader, optimizer, args.device, gradient_clip=args.gradient_clip)
+        print("Running validation...", flush=True)
         valid_metrics = evaluate(model, valid_loader, args.device)
+        print("Running test evaluation...", flush=True)
         test_metrics = evaluate(model, test_loader, args.device)
         row = {
             "epoch": epoch,

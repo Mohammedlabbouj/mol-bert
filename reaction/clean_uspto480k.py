@@ -6,6 +6,11 @@ from pathlib import Path
 from rdkit import Chem
 from rdkit import RDLogger
 
+try:
+    from tqdm.auto import tqdm
+except Exception:
+    tqdm = None
+
 RDLogger.DisableLog("rdApp.*")
 
 
@@ -17,7 +22,14 @@ def is_valid_smiles(smiles):
     smiles = compact_line(smiles)
     if not smiles:
         return False
-    return Chem.MolFromSmiles(smiles) is not None
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return False
+    try:
+        Chem.Kekulize(mol, clearAromaticFlags=True)
+    except Exception:
+        return False
+    return True
 
 
 def validate_reaction_side(side):
@@ -54,8 +66,12 @@ def clean_pair_file(src_path, tgt_path, output_dir, canonicalize_targets=False):
     dropped = 0
     invalid_rows = []
 
+    iterator = zip(src_lines, tgt_lines)
+    if tqdm is not None:
+        iterator = tqdm(iterator, total=len(src_lines), desc=f"cleaning {src_path.name}", leave=True)
+
     with out_src.open("w", encoding="utf-8") as src_out, out_tgt.open("w", encoding="utf-8") as tgt_out:
-        for line_no, (src_line, tgt_line) in enumerate(zip(src_lines, tgt_lines), start=1):
+        for line_no, (src_line, tgt_line) in enumerate(iterator, start=1):
             src_clean = compact_line(src_line)
             tgt_clean = compact_line(tgt_line)
 
@@ -81,6 +97,8 @@ def clean_pair_file(src_path, tgt_path, output_dir, canonicalize_targets=False):
             src_out.write(src_clean + "\n")
             tgt_out.write(tgt_clean + "\n")
             kept += 1
+            if tqdm is None and line_no % 10000 == 0:
+                print(f"{src_path.name}: checked {line_no}/{len(src_lines)} | kept {kept} | dropped {dropped}", flush=True)
 
     with bad_path.open("w", encoding="utf-8") as handle:
         json.dump(invalid_rows, handle, indent=2)
