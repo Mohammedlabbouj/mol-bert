@@ -21,6 +21,7 @@
   "min_delta": 0.0001,
   "seed": 42,
   "clean_only": false,
+  "reset_best_on_resume": true,
   "auto_resume": true,
   "device": "cuda"
 }

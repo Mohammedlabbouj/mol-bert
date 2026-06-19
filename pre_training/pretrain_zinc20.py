@@ -323,8 +323,13 @@ def main():
     if args.resume_checkpoint:
         checkpoint = trainer.load_checkpoint(args.resume_checkpoint, load_optimizer=False)
         start_epoch = int(checkpoint.get("epoch", -1)) + 1
-        best_valid_loss = float(checkpoint.get("best_valid_loss", best_valid_loss))
-        stale_epochs = int(checkpoint.get("stale_epochs", 0))
+        if config.get("reset_best_on_resume", False):
+            best_valid_loss = float("inf")
+            stale_epochs = 0
+            print("Resetting best_valid_loss for a new adaptation stage.")
+        else:
+            best_valid_loss = float(checkpoint.get("best_valid_loss", best_valid_loss))
+            stale_epochs = int(checkpoint.get("stale_epochs", 0))
     elif config.get("auto_resume", True) and last_checkpoint.exists():
         checkpoint = trainer.load_checkpoint(last_checkpoint, load_optimizer=True)
         start_epoch = int(checkpoint.get("epoch", -1)) + 1
