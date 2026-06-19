@@ -214,11 +214,55 @@ class Pretrainer:
         )
         return save_path
 
-    def load_checkpoint(self, checkpoint_path):
+    def _load_tensor_with_resize(self, current_tensor, checkpoint_tensor, key):
+        if current_tensor.shape == checkpoint_tensor.shape:
+            current_tensor.copy_(checkpoint_tensor)
+            return True
+        if current_tensor.dim() != checkpoint_tensor.dim():
+            return False
+        if current_tensor.dim() == 1:
+            rows = min(current_tensor.size(0), checkpoint_tensor.size(0))
+            current_tensor[:rows].copy_(checkpoint_tensor[:rows])
+            return True
+        if current_tensor.shape[1:] == checkpoint_tensor.shape[1:]:
+            rows = min(current_tensor.size(0), checkpoint_tensor.size(0))
+            current_tensor[:rows].copy_(checkpoint_tensor[:rows])
+            return True
+        return False
+
+    def load_checkpoint(self, checkpoint_path, load_optimizer=True):
         checkpoint = torch.load(checkpoint_path, map_location="cpu")
-        self.model.load_state_dict(checkpoint["model_state_dict"], strict=False)
-        if "optimizer_state_dict" in checkpoint:
-            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        model_state = self.model.state_dict()
+        loaded = []
+        skipped = []
+        for key, value in checkpoint["model_state_dict"].items():
+            if key not in model_state:
+                skipped.append(key)
+                continue
+            current_value = model_state[key]
+            if current_value.shape == value.shape:
+                current_value.copy_(value)
+                loaded.append(key)
+                continue
+            if key in {
+                "bert.embeddings.word_embeddings.weight",
+                "cls.predictions.decoder.weight",
+                "cls.predictions.bias",
+            } and self._load_tensor_with_resize(current_value, value, key):
+                loaded.append(key)
+                continue
+            skipped.append(key)
+        self.model.load_state_dict(model_state, strict=False)
+        if load_optimizer and "optimizer_state_dict" in checkpoint:
+            try:
+                self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            except Exception as exc:
+                print(f"Skipping optimizer state load: {exc}")
+        if skipped:
+            print(
+                f"Loaded checkpoint with partial vocab resize. "
+                f"Loaded {len(loaded)} tensors, skipped {len(skipped)} tensors."
+            )
         return checkpoint
 
 
@@ -277,12 +321,12 @@ def main():
     best_checkpoint = output_dir / "best_checkpoint.pt"
 
     if args.resume_checkpoint:
-        checkpoint = trainer.load_checkpoint(args.resume_checkpoint)
+        checkpoint = trainer.load_checkpoint(args.resume_checkpoint, load_optimizer=False)
         start_epoch = int(checkpoint.get("epoch", -1)) + 1
         best_valid_loss = float(checkpoint.get("best_valid_loss", best_valid_loss))
         stale_epochs = int(checkpoint.get("stale_epochs", 0))
     elif config.get("auto_resume", True) and last_checkpoint.exists():
-        checkpoint = trainer.load_checkpoint(last_checkpoint)
+        checkpoint = trainer.load_checkpoint(last_checkpoint, load_optimizer=True)
         start_epoch = int(checkpoint.get("epoch", -1)) + 1
         best_valid_loss = float(checkpoint.get("best_valid_loss", best_valid_loss))
         stale_epochs = int(checkpoint.get("stale_epochs", 0))
