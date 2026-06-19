@@ -81,15 +81,35 @@ class FingerprintReactionModel(nn.Module):
         if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
             checkpoint = checkpoint["model_state_dict"]
         encoder_state = {}
+        word_embedding_weight = None
         for key, value in checkpoint.items():
             if key.startswith("bert."):
-                encoder_state[key[len("bert."):]] = value
+                stripped = key[len("bert."):]
+                if stripped == "embeddings.word_embeddings.weight":
+                    word_embedding_weight = value
+                else:
+                    encoder_state[stripped] = value
             elif key.startswith("encoder."):
-                encoder_state[key[len("encoder."):]] = value
+                stripped = key[len("encoder."):]
+                if stripped == "embeddings.word_embeddings.weight":
+                    word_embedding_weight = value
+                else:
+                    encoder_state[stripped] = value
             elif key.startswith("embeddings.") or key.startswith("pooler."):
-                encoder_state[key] = value
+                if key == "embeddings.word_embeddings.weight":
+                    word_embedding_weight = value
+                else:
+                    encoder_state[key] = value
             elif key.startswith("word_embeddings.") or key.startswith("token_type_embeddings."):
-                encoder_state[key] = value
+                if key == "word_embeddings.weight":
+                    word_embedding_weight = value
+                else:
+                    encoder_state[key] = value
+        if word_embedding_weight is not None:
+            current_weight = self.encoder.embeddings.word_embeddings.weight.data
+            rows_to_copy = min(current_weight.size(0), word_embedding_weight.size(0))
+            current_weight[:rows_to_copy].copy_(word_embedding_weight[:rows_to_copy])
+            self.encoder.embeddings.word_embeddings.weight.data = current_weight
         self.encoder.load_state_dict(encoder_state, strict=False)
         return self
 

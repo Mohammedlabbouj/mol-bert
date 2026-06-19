@@ -86,3 +86,15 @@ python reaction/clean_uspto480k.py --input_dir data/uspto-480k --output_dir data
 ```
 
 This cleaner now also validates every source/target SMILES pair, removes invalid rows, and writes a JSON report of dropped line numbers.
+
+To extend the fingerprint vocab with USPTO-missing substructures:
+
+```bash
+python reaction/build_extended_vocab.py \
+  --input_dir data/uspto-480k-clean \
+  --vocab_path croups/ident_merge.pickle \
+  --output_vocab_path croups/ident_merge_uspto_extended.pickle \
+  --report_path output/uspto_vocab_extension_report.json
+```
+
+This keeps the original token IDs unchanged and appends new USPTO tokens at the end. The reaction model now resizes the source embedding matrix automatically when loading a pretrained checkpoint with a smaller vocab.
