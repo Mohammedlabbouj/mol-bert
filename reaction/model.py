@@ -77,7 +77,10 @@ class FingerprintReactionModel(nn.Module):
             self.load_pretrained_encoder(encoder_checkpoint)
 
     def load_pretrained_encoder(self, checkpoint_path):
-        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        except TypeError:
+            checkpoint = torch.load(checkpoint_path, map_location="cpu")
         if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
             checkpoint = checkpoint["model_state_dict"]
         encoder_state = {}

@@ -35,29 +35,43 @@ class FingerprintTokenizer:
         self.mask_token_id = mask_token_id
         self.total_tokens = 0
         self.oov_tokens = 0
+        self._canonical_cache = {}
+        self._token_cache = {}
 
     @property
     def vocab_size(self):
         return len(self.vocab)
 
     def canonicalize_smiles(self, smiles):
+        smiles = "".join(str(smiles).split())
+        if smiles in self._canonical_cache:
+            return self._canonical_cache[smiles]
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
+            self._canonical_cache[smiles] = None
             return None
-        return Chem.MolToSmiles(mol, canonical=True)
+        canonical = Chem.MolToSmiles(mol, canonical=True)
+        self._canonical_cache[smiles] = canonical
+        return canonical
 
     def _morgan_tokens_for_smiles(self, smiles):
+        smiles = "".join(str(smiles).split())
         canonical = self.canonicalize_smiles(smiles)
         if canonical is None:
             return []
+        if canonical in self._token_cache:
+            return list(self._token_cache[canonical])
         mol = Chem.MolFromSmiles(canonical)
         if mol is None:
             return []
         radius0 = mol2alt_sentence(mol, 0)
         radius1 = mol2alt_sentence(mol, 1)
         if len(radius0) > 0 and len(radius1) >= 2 * len(radius0):
-            return [str(radius1[len(radius0) + i]) + str(radius0[i]) for i in range(len(radius0))]
-        return [str(token) for token in radius1 if token is not None]
+            tokens = [str(radius1[len(radius0) + i]) + str(radius0[i]) for i in range(len(radius0))]
+        else:
+            tokens = [str(token) for token in radius1 if token is not None]
+        self._token_cache[canonical] = tuple(tokens)
+        return tokens
 
     def encode_smiles(self, smiles):
         tokens = self._morgan_tokens_for_smiles(smiles)

@@ -231,7 +231,10 @@ class Pretrainer:
         return False
 
     def load_checkpoint(self, checkpoint_path, load_optimizer=True):
-        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        except TypeError:
+            checkpoint = torch.load(checkpoint_path, map_location="cpu")
         model_state = self.model.state_dict()
         loaded = []
         skipped = []
