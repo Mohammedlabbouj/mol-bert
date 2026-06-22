@@ -261,24 +261,18 @@ def load_checkpoint(path, model, optimizer=None, map_location="cpu"):
 
 
 @torch.no_grad()
-def evaluate(model, loader, device, beam_size=5):
+def evaluate_loss(model, loader, device):
     model.eval()
-    metric_ks = [k for k in (1, 3, 5, 10) if k <= beam_size]
-    top_hits = {k: 0 for k in metric_ks}
-    total = 0
-    exact_matches = 0
     total_loss = 0.0
     total_tokens = 0
-    oov_stats = None
     dataset = unwrap_dataset(loader.dataset)
-    iterator = progress(loader, total=len(loader), desc="valid")
+    iterator = progress(loader, total=len(loader), desc="valid-loss")
     for batch in iterator:
         source_ids = batch["source_ids"].to(device)
         source_mask = batch["source_mask"].to(device)
         target_input_ids = batch["target_input_ids"].to(device)
         target_output_ids = batch["target_output_ids"].to(device)
         batch_size = source_ids.size(0)
-        total += batch_size
         pos = build_source_positional_encoding(batch_size, source_ids.size(1), model.hidden_size, device)
         outputs = model(
             source_ids=source_ids,
@@ -297,7 +291,32 @@ def evaluate(model, loader, device, beam_size=5):
         non_pad_tokens = target_output_ids.ne(model.target_pad_id).sum().item()
         total_loss += float(loss_sum.item())
         total_tokens += int(non_pad_tokens)
+        if tqdm is not None and iterator is not loader:
+            iterator.set_postfix(loss=total_loss / max(total_tokens, 1))
+    return {
+        "valid_loss": total_loss / max(total_tokens, 1),
+        "source_coverage": dataset.source_tokenizer.coverage_report()["coverage"] if dataset else 1.0,
+    }
+
+
+@torch.no_grad()
+def evaluate_beam(model, loader, device, beam_size=5, max_examples=128):
+    model.eval()
+    metric_ks = [k for k in (1, 3, 5, 10) if k <= beam_size]
+    top_hits = {k: 0 for k in metric_ks}
+    total = 0
+    exact_matches = 0
+    oov_stats = None
+    dataset = unwrap_dataset(loader.dataset)
+    iterator = progress(loader, total=len(loader), desc="valid-beam")
+    for batch in iterator:
+        source_ids = batch["source_ids"].to(device)
+        source_mask = batch["source_mask"].to(device)
+        batch_size = source_ids.size(0)
+        total += batch_size
         for index in range(batch_size):
+            if total - batch_size + index >= max_examples:
+                break
             src = source_ids[index : index + 1]
             src_mask = source_mask[index : index + 1]
             src_pos = build_source_positional_encoding(1, src.size(1), model.hidden_size, device)
@@ -322,10 +341,9 @@ def evaluate(model, loader, device, beam_size=5):
                     top_hits[k] += 1
         if oov_stats is None:
             oov_stats = dataset.source_tokenizer.coverage_report()
-        if tqdm is not None and iterator is not loader:
-            iterator.set_postfix(loss=total_loss / max(total_tokens, 1))
+        if total >= max_examples:
+            break
     metrics = {
-        "valid_loss": total_loss / max(total_tokens, 1),
         "exact_match": exact_matches / max(total, 1),
         "top1": top_hits.get(1, 0) / max(total, 1),
         "top3": top_hits.get(3, 0) / max(total, 1),
@@ -401,6 +419,7 @@ def parse_args():
     parser.add_argument("--max_source_len", type=int, default=256)
     parser.add_argument("--max_target_len", type=int, default=256)
     parser.add_argument("--beam_size", type=int, default=5)
+    parser.add_argument("--beam_eval_examples", type=int, default=128, help="Number of validation examples to run beam-search metrics on. Set 0 to skip beam metrics.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--gradient_clip", type=float, default=1.0)
@@ -512,10 +531,21 @@ def main():
     for epoch in range(start_epoch, args.epochs + 1):
         print(f"Epoch {epoch}/{args.epochs}", flush=True)
         train_loss = train_epoch(model, train_loader, optimizer, args.device, gradient_clip=args.gradient_clip)
-        print("Running validation...", flush=True)
-        valid_metrics = evaluate(model, valid_loader, args.device, beam_size=args.beam_size)
-        print("Running test evaluation...", flush=True)
-        test_metrics = evaluate(model, test_loader, args.device, beam_size=args.beam_size)
+        print("Running validation loss...", flush=True)
+        valid_loss_metrics = evaluate_loss(model, valid_loader, args.device)
+        valid_metrics = {"valid_loss": valid_loss_metrics["valid_loss"], "exact_match": 0.0, "top1": 0.0, "top3": 0.0, "top5": 0.0, "top10": 0.0}
+        test_metrics = {"valid_loss": 0.0, "exact_match": 0.0, "top1": 0.0, "top3": 0.0, "top5": 0.0, "top10": 0.0}
+        if args.beam_eval_examples and args.beam_eval_examples > 0:
+            print("Running validation beam metrics...", flush=True)
+            beam_valid_metrics = evaluate_beam(model, valid_loader, args.device, beam_size=args.beam_size, max_examples=args.beam_eval_examples)
+            valid_metrics.update(beam_valid_metrics)
+        print("Running test loss...", flush=True)
+        test_loss_metrics = evaluate_loss(model, test_loader, args.device)
+        test_metrics["valid_loss"] = test_loss_metrics["valid_loss"]
+        if args.beam_eval_examples and args.beam_eval_examples > 0:
+            print("Running test beam metrics...", flush=True)
+            beam_test_metrics = evaluate_beam(model, test_loader, args.device, beam_size=args.beam_size, max_examples=args.beam_eval_examples)
+            test_metrics.update(beam_test_metrics)
         row = {
             "epoch": epoch,
             "train_loss": train_loss,
