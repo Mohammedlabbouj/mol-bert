@@ -77,6 +77,20 @@ It now also writes:
 - `last_checkpoint.pt` for resume-after-interruption
 - `best_checkpoint.pt` for the lowest validation loss
 
+To evaluate the best checkpoint after training and write a report:
+
+```bash
+python reaction/evaluate_best_checkpoint.py \
+  --data_dir data/uspto-480k-clean \
+  --fingerprint_vocab_path croups/ident_merge_uspto_extended.pickle \
+  --checkpoint_path reaction_output/best_checkpoint.pt \
+  --output_dir reaction_output/best_epoch_eval \
+  --beam_size 5 \
+  --beam_eval_examples 64
+```
+
+This loads the best saved model, reports full validation/test loss, and also runs the capped beam metrics so the evaluation stays practical on large splits.
+
 Resume with `--resume_checkpoint path/to/last_checkpoint.pt` or use `--auto_resume` to pick up `last_checkpoint.pt` from the output directory automatically. Early stopping is controlled with `--patience` and `--min_delta`.
 
 If your USPTO files contain spaces between tokens, you can rewrite them with:
