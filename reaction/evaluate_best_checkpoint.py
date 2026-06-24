@@ -188,6 +188,8 @@ def parse_args():
     parser.add_argument("--beam_eval_examples", type=int, default=None)
     parser.add_argument("--valid_eval_examples", type=int, default=None, help="Limit validation evaluation to the first N examples.")
     parser.add_argument("--test_eval_examples", type=int, default=None, help="Limit test evaluation to the first N examples.")
+    parser.add_argument("--skip_validation", action="store_true", help="Skip validation evaluation and only run test evaluation.")
+    parser.add_argument("--skip_test", action="store_true", help="Skip test evaluation and only run validation evaluation.")
     parser.add_argument("--num_workers", type=int, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--hidden_size", type=int, default=300)
@@ -346,45 +348,47 @@ def main():
     }
 
     print(f"Evaluating checkpoint from epoch {checkpoint_epoch}", flush=True)
-    print("Running validation loss...", flush=True)
-    valid_loss_metrics = evaluate_loss(model, valid_loader, args.device)
-    report["valid_loss"] = valid_loss_metrics["valid_loss"]
-    report["valid_source_coverage"] = valid_loss_metrics["source_coverage"]
+    if not args.skip_validation:
+        print("Running validation loss...", flush=True)
+        valid_loss_metrics = evaluate_loss(model, valid_loader, args.device)
+        report["valid_loss"] = valid_loss_metrics["valid_loss"]
+        report["valid_source_coverage"] = valid_loss_metrics["source_coverage"]
 
-    if args.beam_eval_examples and args.beam_eval_examples > 0:
-        print("Running validation beam metrics...", flush=True)
-        report.update(
-            {
-                f"valid_{key}": value
-                for key, value in evaluate_beam(
-                    model,
-                    valid_loader,
-                    args.device,
-                    beam_size=args.beam_size,
-                    max_examples=args.beam_eval_examples,
-                ).items()
-            }
-        )
+        if args.beam_eval_examples and args.beam_eval_examples > 0:
+            print("Running validation beam metrics...", flush=True)
+            report.update(
+                {
+                    f"valid_{key}": value
+                    for key, value in evaluate_beam(
+                        model,
+                        valid_loader,
+                        args.device,
+                        beam_size=args.beam_size,
+                        max_examples=args.beam_eval_examples,
+                    ).items()
+                }
+            )
 
-    print("Running test loss...", flush=True)
-    test_loss_metrics = evaluate_loss(model, test_loader, args.device)
-    report["test_loss"] = test_loss_metrics["valid_loss"]
-    report["test_source_coverage"] = test_loss_metrics["source_coverage"]
+    if not args.skip_test:
+        print("Running test loss...", flush=True)
+        test_loss_metrics = evaluate_loss(model, test_loader, args.device)
+        report["test_loss"] = test_loss_metrics["valid_loss"]
+        report["test_source_coverage"] = test_loss_metrics["source_coverage"]
 
-    if args.beam_eval_examples and args.beam_eval_examples > 0:
-        print("Running test beam metrics...", flush=True)
-        report.update(
-            {
-                f"test_{key}": value
-                for key, value in evaluate_beam(
-                    model,
-                    test_loader,
-                    args.device,
-                    beam_size=args.beam_size,
-                    max_examples=args.beam_eval_examples,
-                ).items()
-            }
-        )
+        if args.beam_eval_examples and args.beam_eval_examples > 0:
+            print("Running test beam metrics...", flush=True)
+            report.update(
+                {
+                    f"test_{key}": value
+                    for key, value in evaluate_beam(
+                        model,
+                        test_loader,
+                        args.device,
+                        beam_size=args.beam_size,
+                        max_examples=args.beam_eval_examples,
+                    ).items()
+                }
+            )
 
     report_path = args.output_dir / args.report_name
     with report_path.open("w", encoding="utf-8") as handle:
