@@ -219,11 +219,14 @@ def main():
     args.beam_size = _coalesce(args.beam_size, checkpoint_args.get("beam_size", 5))
     args.beam_eval_examples = _coalesce(args.beam_eval_examples, checkpoint_args.get("beam_eval_examples", 64))
     args.num_workers = _coalesce(args.num_workers, checkpoint_args.get("num_workers", 0))
-    args.device = _coalesce(args.device, checkpoint_args.get("device", "cuda" if torch.cuda.is_available() else "cpu"))
+    args.device = _coalesce(args.device, "cuda" if torch.cuda.is_available() else "cpu")
     if args.disable_target_canonicalization is None:
         args.disable_target_canonicalization = bool(checkpoint_args.get("disable_target_canonicalization", False))
     if args.tie_decoder_weights is None:
         args.tie_decoder_weights = bool(checkpoint_args.get("tie_decoder_weights", False))
+    if args.device.startswith("cuda") and not torch.cuda.is_available():
+        print("CUDA is not available in this environment. Falling back to CPU.", flush=True)
+        args.device = "cpu"
 
     if "target_tokenizer" in checkpoint:
         target_tokenizer = SmilesTokenizer(token_to_id=checkpoint["target_tokenizer"])
@@ -286,7 +289,16 @@ def main():
         decoder_dropout=args.decoder_dropout,
         max_target_len=args.max_target_len,
         tie_decoder_weights=args.tie_decoder_weights,
-    ).to(args.device)
+    )
+    try:
+        model = model.to(args.device)
+    except RuntimeError as exc:
+        if args.device.startswith("cuda"):
+            print(f"Falling back to CPU after CUDA init failure: {exc}", flush=True)
+            args.device = "cpu"
+            model = model.to(args.device)
+        else:
+            raise
 
     state_dict = checkpoint["model_state_dict"] if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint else checkpoint
     missing, unexpected = model.load_state_dict(state_dict, strict=False)
