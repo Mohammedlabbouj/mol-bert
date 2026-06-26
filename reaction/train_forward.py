@@ -280,12 +280,12 @@ def load_checkpoint(path, model, optimizer=None, map_location="cpu"):
 
 
 @torch.no_grad()
-def evaluate_loss(model, loader, device):
+def evaluate_loss(model, loader, device, desc="valid-loss"):
     model.eval()
     total_loss = 0.0
     total_tokens = 0
     dataset = unwrap_dataset(loader.dataset)
-    iterator = progress(loader, total=len(loader), desc="valid-loss")
+    iterator = progress(loader, total=len(loader), desc=desc)
     for batch in iterator:
         source_ids = batch["source_ids"].to(device)
         source_mask = batch["source_mask"].to(device)
@@ -599,7 +599,7 @@ def main():
         print(f"Epoch {epoch}/{args.epochs}", flush=True)
         train_loss = train_epoch(model, train_loader, optimizer, args.device, gradient_clip=args.gradient_clip)
         print("Running validation loss...", flush=True)
-        valid_loss_metrics = evaluate_loss(model, valid_loader, args.device)
+        valid_loss_metrics = evaluate_loss(model, valid_loader, args.device, desc="valid-loss")
         valid_metrics = {"valid_loss": valid_loss_metrics["valid_loss"], "exact_match": 0.0, "top1": 0.0, "top3": 0.0, "top5": 0.0, "top10": 0.0}
         test_metrics = {"valid_loss": 0.0, "exact_match": 0.0, "top1": 0.0, "top3": 0.0, "top5": 0.0, "top10": 0.0}
         if args.beam_eval_examples and args.beam_eval_examples > 0:
@@ -607,7 +607,7 @@ def main():
             beam_valid_metrics = evaluate_beam(model, valid_loader, args.device, beam_size=args.beam_size, max_examples=args.beam_eval_examples)
             valid_metrics.update(beam_valid_metrics)
         print("Running test loss...", flush=True)
-        test_loss_metrics = evaluate_loss(model, test_loader, args.device)
+        test_loss_metrics = evaluate_loss(model, test_loader, args.device, desc="test-loss")
         test_metrics["valid_loss"] = test_loss_metrics["valid_loss"]
         if args.beam_eval_examples and args.beam_eval_examples > 0:
             print("Running test beam metrics...", flush=True)

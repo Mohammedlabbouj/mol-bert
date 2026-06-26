@@ -369,7 +369,7 @@ def main():
     print(f"Evaluating checkpoint from epoch {checkpoint_epoch}", flush=True)
     if not args.skip_validation:
         print("Running validation loss...", flush=True)
-        valid_loss_metrics = evaluate_loss(model, valid_loader, args.device)
+        valid_loss_metrics = evaluate_loss(model, valid_loader, args.device, desc="valid-loss")
         report["valid_loss"] = valid_loss_metrics["valid_loss"]
         report["valid_source_coverage"] = valid_loss_metrics["source_coverage"]
 
@@ -390,7 +390,7 @@ def main():
 
     if not args.skip_test:
         print("Running test loss...", flush=True)
-        test_loss_metrics = evaluate_loss(model, test_loader, args.device)
+        test_loss_metrics = evaluate_loss(model, test_loader, args.device, desc="test-loss")
         report["test_loss"] = test_loss_metrics["valid_loss"]
         report["test_source_coverage"] = test_loss_metrics["source_coverage"]
 
