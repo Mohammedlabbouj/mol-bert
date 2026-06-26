@@ -1,0 +1,40 @@
+Evaluating checkpoint from epoch 66
+Running validation loss...
+valid-loss: 100%|██████████████████| 32/32 [00:02<00:00, 14.09it/s, loss=0.039]
+Running validation beam metrics...
+valid-beam:  97%|█████████████████████████████ | 31/32 [15:33<00:30, 30.10s/it]
+Running test loss...
+valid-loss: 100%|██████████████████| 32/32 [00:01<00:00, 16.51it/s, loss=0.034]
+Running test beam metrics...
+valid-beam:  97%|█████████████████████████████ | 31/32 [15:45<00:30, 30.51s/it]
+{
+  "checkpoint_path": "/kaggle/input/models/mohammedlabbouj/mol-bert/pytorch/default/1/best_checkpoint.pt",
+  "checkpoint_epoch": 66,
+  "device": "cuda",
+  "batch_size": 32,
+  "beam_size": 5,
+  "beam_eval_examples": 1000,
+  "valid_eval_examples": 1000,
+  "test_eval_examples": 1000,
+  "source_vocab_size": 88004,
+  "target_vocab_size": 141,
+  "valid_loss": 0.038977159845006826,
+  "valid_source_coverage": 1.0,
+  "valid_exact_match": 0.777,
+  "valid_top1": 0.777,
+  "valid_top3": 0.867,
+  "valid_top5": 0.881,
+  "valid_top10": 0.0,
+  "valid_oov_total_tokens": 40956,
+  "valid_oov_tokens": 0,
+  "test_loss": 0.03401460111311741,
+  "test_source_coverage": 1.0,
+  "test_exact_match": 0.785,
+  "test_top1": 0.785,
+  "test_top3": 0.882,
+  "test_top5": 0.902,
+  "test_top10": 0.0,
+  "test_oov_total_tokens": 39936,
+  "test_oov_tokens": 0
+}
+Saved evaluation report to reaction_output/best_epoch_eval/evaluation_report.json

@@ -1,5 +1,6 @@
 import argparse
 import json
+import random
 import sys
 from pathlib import Path
 
@@ -48,7 +49,22 @@ def _limit_records(records, max_examples):
     return records[:max_examples]
 
 
-def build_datasets(args, target_tokenizer, valid_limit=None, test_limit=None):
+def _select_records(records, max_examples=None, random_subset=False, seed=42):
+    if max_examples is None:
+        return list(records)
+    max_examples = int(max_examples)
+    if max_examples <= 0:
+        return []
+    if max_examples >= len(records):
+        return list(records)
+    if random_subset:
+        rng = random.Random(seed)
+        indices = rng.sample(range(len(records)), max_examples)
+        return [records[index] for index in indices]
+    return list(records[:max_examples])
+
+
+def build_datasets(args, target_tokenizer, valid_limit=None, test_limit=None, random_subset=False, seed=42):
     if args.data_dir and not (args.train_path or args.valid_path or args.test_path):
         args.train_path = args.train_path or str(Path(args.data_dir) / "src-train.txt")
         args.valid_path = args.valid_path or str(Path(args.data_dir) / "src-val.txt")
@@ -84,8 +100,8 @@ def build_datasets(args, target_tokenizer, valid_limit=None, test_limit=None):
                 reagents_column=args.reagents_column,
                 product_column=args.product_column,
             )
-        valid_records = _limit_records(valid_records, valid_limit)
-        test_records = _limit_records(test_records, test_limit)
+        valid_records = _select_records(valid_records, valid_limit, random_subset=random_subset, seed=seed)
+        test_records = _select_records(test_records, test_limit, random_subset=random_subset, seed=seed)
         train_dataset = FingerprintReactionDataset.from_records(
             train_records,
             fingerprint_vocab_path=args.fingerprint_vocab_path,
@@ -131,8 +147,8 @@ def build_datasets(args, target_tokenizer, valid_limit=None, test_limit=None):
         train_records = [records[index] for index in train_indices]
         valid_records = [records[index] for index in valid_indices]
         test_records = [records[index] for index in test_indices]
-        valid_records = _limit_records(valid_records, valid_limit)
-        test_records = _limit_records(test_records, test_limit)
+        valid_records = _select_records(valid_records, valid_limit, random_subset=random_subset, seed=seed)
+        test_records = _select_records(test_records, test_limit, random_subset=random_subset, seed=seed)
         train_dataset = FingerprintReactionDataset.from_records(
             train_records,
             fingerprint_vocab_path=args.fingerprint_vocab_path,
@@ -188,6 +204,7 @@ def parse_args():
     parser.add_argument("--beam_eval_examples", type=int, default=None)
     parser.add_argument("--valid_eval_examples", type=int, default=None, help="Limit validation evaluation to the first N examples.")
     parser.add_argument("--test_eval_examples", type=int, default=None, help="Limit test evaluation to the first N examples.")
+    parser.add_argument("--random_eval_subset", action="store_true", help="Randomly sample validation/test evaluation examples instead of taking the first N.")
     parser.add_argument("--skip_validation", action="store_true", help="Skip validation evaluation and only run test evaluation.")
     parser.add_argument("--skip_test", action="store_true", help="Skip test evaluation and only run validation evaluation.")
     parser.add_argument("--num_workers", type=int, default=None)
@@ -253,6 +270,8 @@ def main():
         target_tokenizer,
         valid_limit=args.valid_eval_examples,
         test_limit=args.test_eval_examples,
+        random_subset=args.random_eval_subset,
+        seed=args.seed,
     )
 
     source_vocab_size = get_source_tokenizer(train_dataset).vocab_size

@@ -1,5 +1,6 @@
 import argparse
 import json
+import random
 import sys
 from pathlib import Path
 
@@ -234,6 +235,21 @@ def progress(iterable, total=None, desc=None):
     return tqdm(iterable, total=total, desc=desc, leave=True)
 
 
+def _select_records(records, max_examples=None, random_subset=False, seed=42):
+    if max_examples is None:
+        return list(records)
+    max_examples = int(max_examples)
+    if max_examples <= 0:
+        return []
+    if max_examples >= len(records):
+        return list(records)
+    if random_subset:
+        rng = random.Random(seed)
+        indices = rng.sample(range(len(records)), max_examples)
+        return [records[index] for index in indices]
+    return list(records[:max_examples])
+
+
 def unwrap_dataset(dataset):
     return dataset.dataset if hasattr(dataset, "dataset") else dataset
 
@@ -359,6 +375,26 @@ def evaluate_beam(model, loader, device, beam_size=5, max_examples=128):
     return metrics
 
 
+def make_record_subset_loader(dataset, batch_size, shuffle, pad_source_id, pad_target_id, num_workers=0, max_examples=None, random_subset=False, seed=42):
+    records = _select_records(dataset.records, max_examples=max_examples, random_subset=random_subset, seed=seed)
+    subset = FingerprintReactionDataset.from_records(
+        records,
+        fingerprint_vocab_path=dataset.source_tokenizer.vocab_path,
+        smiles_tokenizer=dataset.target_tokenizer,
+        max_source_len=dataset.max_source_len,
+        max_target_len=dataset.max_target_len,
+        canonicalize_targets=dataset.canonicalize_targets,
+    )
+    return make_loader(
+        subset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        pad_source_id=pad_source_id,
+        pad_target_id=pad_target_id,
+        num_workers=num_workers,
+    )
+
+
 def train_epoch(model, loader, optimizer, device, gradient_clip=1.0):
     model.train()
     running_loss = 0.0
@@ -423,6 +459,9 @@ def parse_args():
     parser.add_argument("--max_target_len", type=int, default=256)
     parser.add_argument("--beam_size", type=int, default=5)
     parser.add_argument("--beam_eval_examples", type=int, default=128, help="Number of validation examples to run beam-search metrics on. Set 0 to skip beam metrics.")
+    parser.add_argument("--valid_eval_examples", type=int, default=None, help="Limit validation evaluation to N examples.")
+    parser.add_argument("--test_eval_examples", type=int, default=None, help="Limit test evaluation to N examples.")
+    parser.add_argument("--random_eval_subset", action="store_true", help="Randomly sample validation/test evaluation examples instead of using the first N.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--gradient_clip", type=float, default=1.0)
@@ -505,6 +544,31 @@ def main():
         pad_target_id=target_pad_id,
         num_workers=args.num_workers,
     )
+
+    if args.valid_eval_examples is not None:
+        valid_loader = make_record_subset_loader(
+            valid_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            pad_source_id=get_source_tokenizer(valid_dataset).pad_token_id,
+            pad_target_id=target_pad_id,
+            num_workers=args.num_workers,
+            max_examples=args.valid_eval_examples,
+            random_subset=args.random_eval_subset,
+            seed=args.seed,
+        )
+    if args.test_eval_examples is not None:
+        test_loader = make_record_subset_loader(
+            test_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            pad_source_id=get_source_tokenizer(test_dataset).pad_token_id,
+            pad_target_id=target_pad_id,
+            num_workers=args.num_workers,
+            max_examples=args.test_eval_examples,
+            random_subset=args.random_eval_subset,
+            seed=args.seed,
+        )
 
     log_path = args.output_dir / "training_log.csv"
     last_checkpoint_path = args.output_dir / "last_checkpoint.pt"
