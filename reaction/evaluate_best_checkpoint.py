@@ -66,12 +66,31 @@ def _select_records(records, max_examples=None, random_subset=False, seed=42):
 
 def build_datasets(args, target_tokenizer, valid_limit=None, test_limit=None, random_subset=False, seed=42):
     if args.data_dir and not (args.train_path or args.valid_path or args.test_path):
-        args.train_path = args.train_path or str(Path(args.data_dir) / "src-train.txt")
-        args.valid_path = args.valid_path or str(Path(args.data_dir) / "src-val.txt")
-        args.test_path = args.test_path or str(Path(args.data_dir) / "src-test.txt")
-        args.train_target_path = args.train_target_path or str(Path(args.data_dir) / "tgt-train.txt")
-        args.valid_target_path = args.valid_target_path or str(Path(args.data_dir) / "tgt-val.txt")
-        args.test_target_path = args.test_target_path or str(Path(args.data_dir) / "tgt-test.txt")
+        data_dir = Path(args.data_dir)
+        split_paths = {
+            "train_path": data_dir / "src-train.txt",
+            "valid_path": data_dir / "src-val.txt",
+            "test_path": data_dir / "src-test.txt",
+            "train_target_path": data_dir / "tgt-train.txt",
+            "valid_target_path": data_dir / "tgt-val.txt",
+            "test_target_path": data_dir / "tgt-test.txt",
+        }
+        full_paths = {
+            "train_path": data_dir / "src-full.txt",
+            "valid_path": data_dir / "src-full.txt",
+            "test_path": data_dir / "src-full.txt",
+            "train_target_path": data_dir / "tgt-full.txt",
+            "valid_target_path": data_dir / "tgt-full.txt",
+            "test_target_path": data_dir / "tgt-full.txt",
+        }
+        use_full_split = full_paths["train_path"].exists() and full_paths["train_target_path"].exists()
+        paths = full_paths if use_full_split else split_paths
+        args.train_path = args.train_path or str(paths["train_path"])
+        args.valid_path = args.valid_path or str(paths["valid_path"])
+        args.test_path = args.test_path or str(paths["test_path"])
+        args.train_target_path = args.train_target_path or str(paths["train_target_path"])
+        args.valid_target_path = args.valid_target_path or str(paths["valid_target_path"])
+        args.test_target_path = args.test_target_path or str(paths["test_target_path"])
 
     if args.train_path and args.valid_path and args.test_path:
         if args.train_target_path and args.valid_target_path and args.test_target_path:
