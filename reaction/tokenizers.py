@@ -92,7 +92,7 @@ class FingerprintTokenizer:
             parts.append(reagents)
         source = ".".join(parts)
         encoded = []
-        for smiles in source.split("."):
+        for smiles in re.split(r"[.,]", source):
             smiles = smiles.strip()
             if smiles:
                 encoded.extend(self.encode_smiles(smiles))
