@@ -188,6 +188,8 @@ def parse_args():
     parser.add_argument("--load_optimizer_state", action="store_true", default=None)
     parser.add_argument("--evaluate_test_each_epoch", action="store_true", default=None)
     parser.add_argument("--disable_target_canonicalization", action="store_true", default=None)
+    parser.add_argument("--monitor_metric", type=str, default=None, help="Validation metric to use for early stopping and best-checkpoint saving.")
+    parser.add_argument("--monitor_mode", type=str, default=None, help="Either 'min' or 'max'. If omitted, inferred from monitor_metric.")
     parser.add_argument("--device", type=str, default=None)
     return parser.parse_args()
 
@@ -299,12 +301,14 @@ def main():
     log_path = output_dir / "training_log.csv"
     last_checkpoint_path = output_dir / "last_checkpoint.pt"
     best_checkpoint_path = output_dir / "best_checkpoint.pt"
+    best_top1_checkpoint_path = output_dir / "best_top1_checkpoint.pt"
     dataset_report_path = output_dir / "dataset_report.json"
     with dataset_report_path.open("w", encoding="utf-8") as handle:
         json.dump(split_report, handle, indent=2)
 
     rows = []
     best_valid_loss = float("inf")
+    best_valid_top1 = float("-inf")
     stale_epochs = 0
     start_epoch = 1
     if "epoch" in checkpoint:
@@ -323,6 +327,14 @@ def main():
     beam_size = int(config.get("beam_size", 5))
     beam_eval_examples = int(config.get("beam_eval_examples", valid_eval_examples or 0))
     gradient_clip = float(config.get("gradient_clip", 1.0))
+    monitor_metric = str(config.get("monitor_metric", "valid_loss"))
+    monitor_mode = config.get("monitor_mode", None)
+    if monitor_mode is None:
+        monitor_mode = "max" if any(token in monitor_metric.lower() for token in ("top", "acc", "exact", "coverage")) else "min"
+    monitor_mode = str(monitor_mode).lower()
+    if monitor_mode not in {"min", "max"}:
+        raise ValueError("--monitor_mode must be 'min' or 'max'.")
+    best_monitor_value = float("-inf") if monitor_mode == "max" else float("inf")
 
     for epoch in range(start_epoch, epochs + 1):
         print(f"Epoch {epoch}/{epochs}", flush=True)
@@ -359,8 +371,18 @@ def main():
         pd.DataFrame(rows).to_csv(log_path, index=False)
         print(json.dumps(row, indent=2))
 
-        improved = valid_metrics["valid_loss"] < (best_valid_loss - min_delta)
+        current_monitor_value = row.get(monitor_metric)
+        if current_monitor_value is None:
+            raise KeyError(
+                f"Configured monitor_metric='{monitor_metric}' is not present in the logged row. "
+                f"Available keys: {sorted(row.keys())}"
+            )
+        if monitor_mode == "max":
+            improved = current_monitor_value > (best_monitor_value + min_delta)
+        else:
+            improved = current_monitor_value < (best_monitor_value - min_delta)
         if improved:
+            best_monitor_value = current_monitor_value
             best_valid_loss = valid_metrics["valid_loss"]
             stale_epochs = 0
         else:
@@ -374,6 +396,8 @@ def main():
             "dataset_report": split_report,
             "epoch": epoch,
             "best_valid_loss": best_valid_loss,
+            "best_monitor_metric": monitor_metric,
+            "best_monitor_value": best_monitor_value,
             "stale_epochs": stale_epochs,
             "train_row": row,
             "args": config,
@@ -383,9 +407,16 @@ def main():
             torch.save(checkpoint_state, output_dir / f"checkpoint_epoch_{epoch}.pt")
         if improved:
             torch.save(checkpoint_state, best_checkpoint_path)
+        if valid_metrics["top1"] > best_valid_top1:
+            best_valid_top1 = valid_metrics["top1"]
+            checkpoint_state["best_valid_top1"] = best_valid_top1
+            torch.save(checkpoint_state, best_top1_checkpoint_path)
 
         if stale_epochs >= patience:
-            print(f"Early stopping triggered at epoch {epoch}. Best valid_loss={best_valid_loss:.6f}")
+            print(
+                f"Early stopping triggered at epoch {epoch}. "
+                f"Best {monitor_metric}={best_monitor_value:.6f}"
+            )
             break
 
 
